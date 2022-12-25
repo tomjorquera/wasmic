@@ -7,7 +7,7 @@ use crate::{
     runtime::{ModuleInstance, Num, Ref, Store, Val},
 };
 
-pub trait Stack {
+trait Stack {
     fn push(&mut self, entry: StackEntry);
     fn pop(&mut self) -> Option<StackEntry>;
     fn push_into<T: Into<StackEntry>>(&mut self, val: T);
@@ -152,23 +152,22 @@ pub struct Frame {
     pub module: ModuleInstance,
 }
 
-pub struct Thread {
+struct Thread {
     frame: Frame,
-    instr: Vec<Instr>,
+    program: Vec<Instr>,
 }
 
 pub struct Trap {} // TODO
 
-pub struct VM {
-    store: Store,
-    thread: Thread,
+trait VM {
+    fn run(&mut self, thread: Thread);
 }
 
-impl VM {
-    fn run(&mut self, program: &Vec<Instr>) {
+impl VM for Store {
+    fn run(&mut self, mut thread: Thread) {
         let mut stack: Vec<StackEntry> = vec![];
-        for op in program {
-            match *op {
+        for op in thread.program {
+            match op {
                 // Numeric
                 Instr::I32Const(val) => stack.push_into(val),
                 Instr::I32Clz => stack.unop(&u32::clz),
@@ -242,20 +241,20 @@ impl VM {
                 }
                 Instr::RefFunc(func_idx) => {
                     // TODO validate index
-                    let func_addr = self.thread.frame.module.funct[func_idx];
+                    let func_addr = thread.frame.module.funct[func_idx];
                     stack.push(StackEntry::Value(Val::Ref(Ref::Func(func_addr))))
                 }
                 // Var
                 Instr::LocalGet(local_idx) => {
                     // TODO validate index
-                    stack.push(StackEntry::Value(self.thread.frame.locals[local_idx]));
+                    stack.push(StackEntry::Value(thread.frame.locals[local_idx]));
                 }
                 Instr::LocalSet(local_idx) => {
                     // TODO validate top of stack is value
                     match stack.pop().unwrap() {
                         StackEntry::Value(val) => {
                             // TODO validate index
-                            self.thread.frame.locals[local_idx] = val;
+                            thread.frame.locals[local_idx] = val;
                         }
                         _ => unreachable!(),
                     }
@@ -264,34 +263,23 @@ impl VM {
                     // TODO validate top of stack is value
                     match stack.peek().unwrap() {
                         StackEntry::Value(val) => {
-                            self.thread.frame.locals[local_idx] = val;
-                        }
-                        _ => unreachable!(),
-                    }
-                }
-                Instr::GlobalSet(global_idx) => {
-                    // TODO validate top of stack is value
-                    match stack.pop().unwrap() {
-                        StackEntry::Value(val) => {
-                            // TODO validate index
-                            let glob_addr = self.thread.frame.module.globals[global_idx];
-                            self.store.globals[glob_addr].value = val;
+                            thread.frame.locals[local_idx] = val;
                         }
                         _ => unreachable!(),
                     }
                 }
                 Instr::GlobalGet(global_idx) => {
                     // TODO validate index
-                    let glob_addr = self.thread.frame.module.globals[global_idx];
-                    stack.push(StackEntry::Value(self.store.globals[glob_addr].value));
+                    let glob_addr = thread.frame.module.globals[global_idx];
+                    stack.push(StackEntry::Value(self.globals[glob_addr].value));
                 }
                 Instr::GlobalSet(global_idx) => {
                     // TODO validate top of stack is value
                     match stack.pop().unwrap() {
                         StackEntry::Value(val) => {
                             // TODO validate index
-                            let glob_addr = self.thread.frame.module.globals[global_idx];
-                            self.store.globals[glob_addr].value = val;
+                            let glob_addr = thread.frame.module.globals[global_idx];
+                            self.globals[glob_addr].value = val;
                         }
                         _ => unreachable!(),
                     }
