@@ -27,14 +27,9 @@ pub enum Value {
 }
 
 #[derive(Clone)]
-pub struct Result {
-    values: Vec<Value>,
-}
-
-#[derive(Clone)]
 pub struct Function {
-    pub input: Result,
-    pub output: Result,
+    pub input: Vec<Value>,
+    pub output: Vec<Value>,
 }
 
 #[derive(Clone, Copy)]

@@ -5,4 +5,10 @@ pub enum Err {
     ModuleParse,
     ModuleInstanceExportNotFound(String),
     OutOfBoundTableAccess,
+    TrapUnreachable,
+    InvariantViolatedAllResultsAreValues,
+    AssertFailedEnoughVauesToReturn,
+    AssertFailedFrameOnTopOfStack,
+    AssertFailedFuncInstanceExists,
+    AssertFailedEnoughStackValuesForFunctionCall,
 }

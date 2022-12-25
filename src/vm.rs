@@ -2,9 +2,12 @@ use alloc::vec::Vec;
 use core::ops::{BitAnd, BitOr, BitXor, Not};
 
 use crate::{
+    err,
     instr::Instr,
     numeric::SupportedInteger,
-    runtime::{ModuleInstance, Num, Ref, Store, Val},
+    runtime::{
+        FuncInstance, HostFuncInstance, InternalFuncInstance, ModuleInstance, Num, Ref, Store, Val,
+    },
 };
 
 trait Stack {
@@ -148,6 +151,7 @@ pub struct Label {
 }
 
 pub struct Frame {
+    pub arity: usize,
     pub locals: Vec<Val>,
     pub module: ModuleInstance,
 }
@@ -160,11 +164,11 @@ struct Thread {
 pub struct Trap {} // TODO
 
 trait VM {
-    fn run(&mut self, thread: Thread);
+    fn run(&mut self, thread: Thread) -> Result<Vec<Val>, err::Err>;
 }
 
 impl VM for Store {
-    fn run(&mut self, mut thread: Thread) {
+    fn run(&mut self, mut thread: Thread) -> Result<Vec<Val>, err::Err> {
         let mut stack: Vec<StackEntry> = vec![];
         for op in thread.program {
             match op {
@@ -284,11 +288,71 @@ impl VM for Store {
                         _ => unreachable!(),
                     }
                 }
-                Instr::Nop => {}
-                Instr::Unreachable => {
-                    panic!("Reached unreachable")
+                Instr::Nop => {
+                    // Do nothing
+                }
+                Instr::Unreachable => return Result::Err(err::Err::TrapUnreachable),
+                Instr::Return => {
+                    if thread.frame.arity > stack.len() {
+                        return Result::Err(err::Err::AssertFailedEnoughVauesToReturn);
+                    }
+                    let mut values = vec![];
+                    for _ in 0..thread.frame.arity {
+                        match stack.pop().unwrap() {
+                            StackEntry::Value(val) => values.push(val),
+                            _ => {
+                                return Result::Err(err::Err::InvariantViolatedAllResultsAreValues)
+                            }
+                        }
+                    }
+
+                    match stack.pop() {
+                        Option::Some(StackEntry::Activation(_, _)) => {
+                            return Result::Ok(values);
+                        }
+                        _ => {
+                            return Result::Err(err::Err::AssertFailedFrameOnTopOfStack);
+                        }
+                    }
+                }
+
+                Instr::Call(idx) => {
+                    if thread.frame.module.funct.len() < idx {
+                        return Result::Err(err::Err::AssertFailedFuncInstanceExists);
+                    }
+                    let faddr = &thread.frame.module.funct[idx];
+                    let finstance = &self.funcinstances[*faddr];
+
+                    match finstance {
+                        FuncInstance::Internal(InternalFuncInstance {
+                            functype,
+                            module,
+                            code,
+                        }) => {
+                            if stack.len() < functype.input.len() {
+                                return Result::Err(
+                                    err::Err::AssertFailedEnoughStackValuesForFunctionCall,
+                                );
+                            }
+                            unimplemented!()
+                        }
+                        FuncInstance::Host(HostFuncInstance { functype, code }) => {
+                            unimplemented!()
+                        }
+                    }
                 }
             }
         }
+
+        let mut res = vec![];
+        for entry in stack {
+            match entry {
+                StackEntry::Value(val) => {
+                    res.push(val);
+                }
+                _ => return Result::Err(err::Err::InvariantViolatedAllResultsAreValues),
+            }
+        }
+        return Result::Ok(res);
     }
 }

@@ -518,8 +518,8 @@ pub enum Instr {
     //Br(Index),
     //BrIf(Index),
     //BrTable(Vec<Index>, Index),
-    //Return,
-    //Call(Index),
+    Return,
+    Call(Index),
     //CallIndirect(Index, Index),
     // Administrative
     //Trap,
