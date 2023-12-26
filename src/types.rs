@@ -89,12 +89,6 @@ impl Validable for Value {
     }
 }
 
-impl Validable for Result {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
-        true
-    }
-}
-
 impl Validable for Function {
     fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
         true

@@ -3,7 +3,7 @@ use crate::{
     validation::Context,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Instr {
     // Numeric
     I32Const(u32),
@@ -346,6 +346,7 @@ pub enum Instr {
     LocalTee(Index),
     GlobalGet(Index),
     GlobalSet(Index),
+
     // Table
     //TableGet(Index),
     //TableSet(Index),

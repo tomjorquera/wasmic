@@ -170,7 +170,9 @@ trait VM {
 impl VM for Store {
     fn run(&mut self, mut thread: Thread) -> Result<Vec<Val>, err::Err> {
         let mut stack: Vec<StackEntry> = vec![];
-        for op in thread.program {
+        let mut ip = 0;
+        while ip < thread.program.len() && thread.program.len() > 0 {
+            let op = thread.program[ip];
             match op {
                 // Numeric
                 Instr::I32Const(val) => stack.push_into(val),
@@ -342,6 +344,7 @@ impl VM for Store {
                     }
                 }
             }
+            ip += 1;
         }
 
         let mut res = vec![];
