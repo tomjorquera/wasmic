@@ -10,34 +10,34 @@ use crate::{
     },
 };
 
-trait Stack {
-    fn push(&mut self, entry: StackEntry);
-    fn pop(&mut self) -> Option<StackEntry>;
-    fn push_into<T: Into<StackEntry>>(&mut self, val: T);
-    fn pop_from<T: From<StackEntry>>(&mut self) -> T;
-    fn peek(&self) -> Option<StackEntry>;
-    fn unop<T: From<StackEntry> + Into<StackEntry>>(&mut self, f: &dyn Fn(T) -> T);
-    fn binop<T: From<StackEntry> + Into<StackEntry>>(&mut self, f: &dyn Fn(T, T) -> T);
-    fn testop<T: From<bool> + From<StackEntry> + Into<StackEntry>>(
+trait Stack<'a> {
+    fn push(&mut self, entry: StackEntry<'a>);
+    fn pop(&mut self) -> Option<StackEntry<'a>>;
+    fn push_into<T: Into<StackEntry<'a>>>(&mut self, val: T);
+    fn pop_from<T: From<StackEntry<'a>>>(&mut self) -> T;
+    fn peek(&self) -> Option<StackEntry<'a>>;
+    fn unop<T: From<StackEntry<'a>> + Into<StackEntry<'a>>>(&mut self, f: &dyn Fn(T) -> T);
+    fn binop<T: From<StackEntry<'a>> + Into<StackEntry<'a>>>(&mut self, f: &dyn Fn(T, T) -> T);
+    fn testop<T: From<bool> + From<StackEntry<'a>> + Into<StackEntry<'a>>>(
         &mut self,
         f: &dyn Fn(T) -> bool,
     );
-    fn relop<T: From<bool> + From<StackEntry> + Into<StackEntry>>(
+    fn relop<T: From<bool> + From<StackEntry<'a>> + Into<StackEntry<'a>>>(
         &mut self,
         f: &dyn Fn(T, T) -> bool,
     );
 }
 
-impl Stack for Vec<StackEntry> {
-    fn push(&mut self, entry: StackEntry) {
+impl<'a> Stack<'a> for Vec<StackEntry<'a>> {
+    fn push(&mut self, entry: StackEntry<'a>) {
         self.push(entry)
     }
 
-    fn push_into<T: Into<StackEntry>>(&mut self, val: T) {
+    fn push_into<T: Into<StackEntry<'a>>>(&mut self, val: T) {
         self.push(val.into());
     }
 
-    fn pop_from<T: From<StackEntry>>(&mut self) -> T {
+    fn pop_from<T: From<StackEntry<'a>>>(&mut self) -> T {
         // TODO validate top of stack
         match self.pop().unwrap() {
             entry => T::from(entry),
@@ -45,29 +45,29 @@ impl Stack for Vec<StackEntry> {
         }
     }
 
-    fn pop(&mut self) -> Option<StackEntry> {
+    fn pop(&mut self) -> Option<StackEntry<'a>> {
         todo!()
     }
 
-    fn peek(&self) -> Option<StackEntry> {
+    fn peek(&self) -> Option<StackEntry<'a>> {
         todo!()
     }
 
-    fn unop<T: From<StackEntry> + Into<StackEntry>>(&mut self, f: &dyn Fn(T) -> T) {
+    fn unop<T: From<StackEntry<'a>> + Into<StackEntry<'a>>>(&mut self, f: &dyn Fn(T) -> T) {
         // TODO validate top of stack
         let val = self.pop_from();
         let res = f(val);
         self.push_into(res);
     }
 
-    fn binop<T: From<StackEntry> + Into<StackEntry>>(&mut self, f: &dyn Fn(T, T) -> T) {
+    fn binop<T: From<StackEntry<'a>> + Into<StackEntry<'a>>>(&mut self, f: &dyn Fn(T, T) -> T) {
         // TODO validate top of stack
         let val1 = self.pop_from();
         let val2 = self.pop_from();
         let res = f(val1, val2);
         self.push_into(res);
     }
-    fn testop<T: From<bool> + From<StackEntry> + Into<StackEntry>>(
+    fn testop<T: From<bool> + From<StackEntry<'a>> + Into<StackEntry<'a>>>(
         &mut self,
         f: &dyn Fn(T) -> bool,
     ) {
@@ -80,7 +80,7 @@ impl Stack for Vec<StackEntry> {
             self.push_into(0u32);
         }
     }
-    fn relop<T: From<bool> + From<StackEntry> + Into<StackEntry>>(
+    fn relop<T: From<bool> + From<StackEntry<'a>> + Into<StackEntry<'a>>>(
         &mut self,
         f: &dyn Fn(T, T) -> bool,
     ) {
@@ -95,13 +95,13 @@ impl Stack for Vec<StackEntry> {
     }
 }
 
-pub enum StackEntry {
+pub enum StackEntry<'a> {
     Value(Val),
-    Label(Label),
-    Activation(i64, Frame),
+    Label(Label<'a>),
+    Activation(i64, Frame<'a>),
 }
 
-impl From<StackEntry> for u32 {
+impl<'a> From<StackEntry<'a>> for u32 {
     fn from(entry: StackEntry) -> Self {
         // TODO validate?
         match entry {
@@ -111,13 +111,13 @@ impl From<StackEntry> for u32 {
     }
 }
 
-impl Into<StackEntry> for u32 {
-    fn into(self) -> StackEntry {
+impl<'a> Into<StackEntry<'a>> for u32 {
+    fn into(self) -> StackEntry<'a> {
         StackEntry::Value(Val::Num(Num::I32(self)))
     }
 }
 
-impl From<StackEntry> for u64 {
+impl<'a> From<StackEntry<'a>> for u64 {
     fn from(entry: StackEntry) -> Self {
         // TODO validate?
         match entry {
@@ -127,52 +127,58 @@ impl From<StackEntry> for u64 {
     }
 }
 
-impl Into<StackEntry> for u64 {
-    fn into(self) -> StackEntry {
+impl<'a> Into<StackEntry<'a>> for u64 {
+    fn into(self) -> StackEntry<'a> {
         StackEntry::Value(Val::Num(Num::I64(self)))
     }
 }
 
-impl Into<StackEntry> for f32 {
-    fn into(self) -> StackEntry {
+impl<'a> Into<StackEntry<'a>> for f32 {
+    fn into(self) -> StackEntry<'a> {
         StackEntry::Value(Val::Num(Num::F32(self)))
     }
 }
 
-impl Into<StackEntry> for f64 {
-    fn into(self) -> StackEntry {
+impl<'a> Into<StackEntry<'a>> for f64 {
+    fn into(self) -> StackEntry<'a> {
         StackEntry::Value(Val::Num(Num::F64(self)))
     }
 }
 
-pub struct Label {
-    pub arity: i64,
-    pub instr: Vec<Instr>,
+pub struct Label<'a> {
+    pub arity: usize,
+    pub instr: &'a Vec<Instr>,
 }
 
-pub struct Frame {
+pub struct Frame<'a> {
     pub arity: usize,
     pub locals: Vec<Val>,
-    pub module: ModuleInstance,
+    pub module: &'a ModuleInstance,
 }
 
-struct Thread {
-    frame: Frame,
-    program: Vec<Instr>,
+struct Thread<'a> {
+    frame: Frame<'a>,
+    program: &'a Vec<Instr>,
+}
+
+trait InstrStack {
+    fn incr_ip(&mut self);
+    fn curr_op(&self) -> Instr;
+    fn jump(&mut self, target: usize);
 }
 
 pub struct Trap {} // TODO
 
 trait VM {
-    fn run(&mut self, thread: Thread) -> Result<Vec<Val>, err::Err>;
+    fn run(&mut self, program: &Vec<Instr>, frame: &mut Frame) -> Result<Vec<Val>, err::Err>;
 }
 
 impl VM for Store {
-    fn run(&mut self, mut thread: Thread) -> Result<Vec<Val>, err::Err> {
+    fn run(&mut self, program: &Vec<Instr>, frame: &mut Frame) -> Result<Vec<Val>, err::Err> {
         let mut stack: Vec<StackEntry> = vec![];
         let mut ip = 0;
-        while ip < thread.program.len() && thread.program.len() > 0 {
-            let op = thread.program[ip];
+        while ip < program.len() && program.len() > 0 {
+            let op = program[ip];
             match op {
                 // Numeric
                 Instr::I32Const(val) => stack.push_into(val),
@@ -247,20 +253,20 @@ impl VM for Store {
                 }
                 Instr::RefFunc(func_idx) => {
                     // TODO validate index
-                    let func_addr = thread.frame.module.funct[func_idx];
+                    let func_addr = frame.module.funct[func_idx];
                     stack.push(StackEntry::Value(Val::Ref(Ref::Func(func_addr))))
                 }
                 // Var
                 Instr::LocalGet(local_idx) => {
                     // TODO validate index
-                    stack.push(StackEntry::Value(thread.frame.locals[local_idx]));
+                    stack.push(StackEntry::Value(frame.locals[local_idx]));
                 }
                 Instr::LocalSet(local_idx) => {
                     // TODO validate top of stack is value
                     match stack.pop().unwrap() {
                         StackEntry::Value(val) => {
                             // TODO validate index
-                            thread.frame.locals[local_idx] = val;
+                            frame.locals[local_idx] = val;
                         }
                         _ => unreachable!(),
                     }
@@ -269,14 +275,14 @@ impl VM for Store {
                     // TODO validate top of stack is value
                     match stack.peek().unwrap() {
                         StackEntry::Value(val) => {
-                            thread.frame.locals[local_idx] = val;
+                            frame.locals[local_idx] = val;
                         }
                         _ => unreachable!(),
                     }
                 }
                 Instr::GlobalGet(global_idx) => {
                     // TODO validate index
-                    let glob_addr = thread.frame.module.globals[global_idx];
+                    let glob_addr = frame.module.globals[global_idx];
                     stack.push(StackEntry::Value(self.globals[glob_addr].value));
                 }
                 Instr::GlobalSet(global_idx) => {
@@ -284,7 +290,7 @@ impl VM for Store {
                     match stack.pop().unwrap() {
                         StackEntry::Value(val) => {
                             // TODO validate index
-                            let glob_addr = thread.frame.module.globals[global_idx];
+                            let glob_addr = frame.module.globals[global_idx];
                             self.globals[glob_addr].value = val;
                         }
                         _ => unreachable!(),
@@ -295,11 +301,11 @@ impl VM for Store {
                 }
                 Instr::Unreachable => return Result::Err(err::Err::TrapUnreachable),
                 Instr::Return => {
-                    if thread.frame.arity > stack.len() {
+                    if frame.arity > stack.len() {
                         return Result::Err(err::Err::AssertFailedEnoughVauesToReturn);
                     }
                     let mut values = vec![];
-                    for _ in 0..thread.frame.arity {
+                    for _ in 0..frame.arity {
                         match stack.pop().unwrap() {
                             StackEntry::Value(val) => values.push(val),
                             _ => {
@@ -319,23 +325,39 @@ impl VM for Store {
                 }
 
                 Instr::Call(idx) => {
-                    if thread.frame.module.funct.len() < idx {
+                    if frame.module.funct.len() < idx {
                         return Result::Err(err::Err::AssertFailedFuncInstanceExists);
                     }
-                    let faddr = &thread.frame.module.funct[idx];
+                    let faddr = &frame.module.funct[idx];
                     let finstance = &self.funcinstances[*faddr];
 
                     match finstance {
                         FuncInstance::Internal(InternalFuncInstance {
                             functype,
-                            module,
-                            code,
+                            module_addr,
+                            code_addr,
                         }) => {
                             if stack.len() < functype.input.len() {
                                 return Result::Err(
                                     err::Err::AssertFailedEnoughStackValuesForFunctionCall,
                                 );
                             }
+                            let module_instance = &self.instances[*module_addr];
+                            let func_def = &self.funcdefs[*code_addr];
+                            let mut inner_frame = Frame {
+                                arity: functype.output.len(),
+                                locals: vec![], // TODO pop functype.input.len() values from stack
+                                module: module_instance,
+                            };
+                            stack.push(StackEntry::Activation(
+                                0, // TODO ???
+                                inner_frame,
+                            ));
+                            let label = Label {
+                                arity: functype.output.len(),
+                                instr: &func_def.body,
+                            };
+                            self.run(label.instr, &mut inner_frame);
                             unimplemented!()
                         }
                         FuncInstance::Host(HostFuncInstance { functype, code }) => {

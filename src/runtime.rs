@@ -84,8 +84,8 @@ pub enum FuncInstance {
 
 pub struct InternalFuncInstance {
     pub functype: types::Function,
-    pub module: Addr,
-    pub code: Addr,
+    pub module_addr: Addr,
+    pub code_addr: Addr,
 }
 pub struct HostFuncInstance {
     pub functype: types::Function,
@@ -180,8 +180,8 @@ impl embedding::Store for Store {
             self.funcdefs.push(func.clone());
             let func_inst = InternalFuncInstance {
                 functype: module.types[func.functype].clone(),
-                module: inst_addr,
-                code: self.funcdefs.len() - 1,
+                module_addr: inst_addr,
+                code_addr: self.funcdefs.len() - 1,
             };
             self.funcinstances.push(FuncInstance::Internal(func_inst));
             let addr = self.funcinstances.len() - 1;
