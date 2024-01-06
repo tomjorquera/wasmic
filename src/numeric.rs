@@ -3,8 +3,6 @@ use core::{
     ops::{Add, AddAssign, BitAnd, BitOr, Div, Rem, Shl, Shr, Sub},
 };
 
-use crate::runtime::{Num, Val};
-
 pub trait SupportedInteger<
     Signed: Div<Output = Signed>
         + PartialOrd

@@ -1,8 +1,9 @@
+use crate::validation::{Context, Validable};
 use alloc::vec::Vec;
 
-use crate::validation::{Context, Validable};
+pub type Byte = u8;
 
-pub type Index = usize;
+pub type Index = usize; // TODO should be u32 here, but then causes issue with native vec index
 pub type Addr = usize;
 
 #[derive(Clone, Copy)]
@@ -11,6 +12,12 @@ pub enum Number {
     I64,
     F32,
     F64,
+}
+
+// TODO Vector Types (sec 2.3.2)
+#[derive(Clone, Copy)]
+pub enum Vector {
+    Unimplemented,
 }
 
 #[derive(Clone, Copy)]
@@ -22,14 +29,16 @@ pub enum Ref {
 #[derive(Clone, Copy)]
 pub enum Value {
     Num(Number),
-    Vec,
+    Vec(Vector),
     Ref(Ref),
 }
 
+pub type Result = Vec<Value>;
+
 #[derive(Clone)]
 pub struct Function {
-    pub input: Vec<Value>,
-    pub output: Vec<Value>,
+    pub input: Result,
+    pub output: Result,
 }
 
 #[derive(Clone, Copy)]
@@ -40,13 +49,12 @@ pub struct Limits {
 
 #[derive(Clone, Copy)]
 pub struct Mem {
-    pub limits: Limits,
+    pub limits: Limits, // Note limits are given in units of page size (sec 2.3.8)
 }
 
 #[derive(Clone, Copy)]
 pub struct Table {
     pub limits: Limits,
-    pub reftype: Ref,
 }
 
 #[derive(Clone, Copy)]
