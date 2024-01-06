@@ -5,7 +5,7 @@ use alloc::{string::ToString, vec::Vec};
 use crate::{
     err::Err,
     modules::{self, HostFunc},
-    runtime::{self, ModuleInstance},
+    runtime,
     types::{self, Addr},
 };
 
@@ -150,6 +150,37 @@ impl<'a> Instanciable<'a> for runtime::ModuleInstance {
             store.datas.push(data_inst);
             instance_ref.borrow_mut().datas.push(store.datas.len() - 1);
         }
+
+        // TODO Export Value Typing validation (4.5.2)
+        for export in &module.exports {
+            match export.desc {
+                modules::ExportDesc::Func(idx) => {
+                    instance_ref.borrow_mut().exports.push(runtime::Export {
+                        name: export.name.clone(),
+                        value: runtime::ExternalVal::Fun(instance_ref.borrow().funct[idx]),
+                    });
+                }
+                modules::ExportDesc::Table(idx) => {
+                    instance_ref.borrow_mut().exports.push(runtime::Export {
+                        name: export.name.clone(),
+                        value: runtime::ExternalVal::Table(instance_ref.borrow().tables[idx]),
+                    });
+                }
+                modules::ExportDesc::Mem(idx) => {
+                    instance_ref.borrow_mut().exports.push(runtime::Export {
+                        name: export.name.clone(),
+                        value: runtime::ExternalVal::Mem(instance_ref.borrow().mems[idx]),
+                    });
+                }
+                modules::ExportDesc::Global(idx) => {
+                    instance_ref.borrow_mut().exports.push(runtime::Export {
+                        name: export.name.clone(),
+                        value: runtime::ExternalVal::Global(instance_ref.borrow().globals[idx]),
+                    });
+                }
+            }
+        }
+
         return Ok(&store.modules[store.modules.len() - 1]);
     }
 }
