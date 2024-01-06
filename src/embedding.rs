@@ -81,7 +81,30 @@ impl<'a> Instanciable<'a> for runtime::ModuleInstance {
             exports: vec![],
         };
 
-        // TODO validate imports (see section 3.2.8))
+        for externval in &externvals {
+            match externval {
+                &runtime::ExternalVal::Fun(addr) => {
+                    if store.funcinstances.len() <= addr {
+                        return Result::Err(Err::UndefinedFunction(addr));
+                    }
+                }
+                &runtime::ExternalVal::Global(addr) => {
+                    if store.globals.len() <= addr {
+                        return Result::Err(Err::UndefinedGlobal(addr));
+                    }
+                }
+                &runtime::ExternalVal::Mem(addr) => {
+                    if store.mems.len() <= addr {
+                        return Result::Err(Err::UndefinedMem(addr));
+                    }
+                }
+                &runtime::ExternalVal::Table(addr) => {
+                    if store.tables.len() <= addr {
+                        return Result::Err(Err::UndefinedTable(addr));
+                    }
+                }
+            }
+        }
 
         instance.types = module.types.clone();
 

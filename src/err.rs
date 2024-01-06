@@ -1,5 +1,7 @@
 use alloc::string::String;
 
+use crate::types::Addr;
+
 pub enum Err {
     ModuleDecode,
     ModuleParse,
@@ -11,4 +13,8 @@ pub enum Err {
     AssertFailedFrameOnTopOfStack,
     AssertFailedFuncInstanceExists,
     AssertFailedEnoughStackValuesForFunctionCall,
+    UndefinedFunction(Addr),
+    UndefinedGlobal(Addr),
+    UndefinedMem(Addr),
+    UndefinedTable(Addr),
 }
