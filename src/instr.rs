@@ -1,6 +1,8 @@
+use alloc::vec::Vec;
+
 use crate::{
     types::{self, Index},
-    validation::Context,
+    validation::{Context, Validable},
 };
 
 #[derive(Clone, Copy)]
@@ -546,5 +548,15 @@ impl Instr {
             }
             _ => false,
         }
+    }
+}
+
+pub type Expr = Vec<Instr>;
+
+// Validation
+
+impl Validable for Expr {
+    fn is_valid(&self, context: &Context, k: Option<u32>) -> bool {
+        todo!()
     }
 }
