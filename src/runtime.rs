@@ -6,8 +6,7 @@ use alloc::{
 use crate::{
     embedding,
     err::Err,
-    instr::Instr,
-    modules::{Func, HostFunc},
+    modules::HostFunc,
     types::{self, Addr},
 };
 
@@ -54,26 +53,28 @@ impl Val {
     }
 }
 
+pub enum Result {
+    Res(Vec<Val>),
+    Trap,
+}
+
 pub struct Store {
     pub funcinstances: Vec<FuncInstance>,
-    pub funcdefs: Vec<Func>,
-    pub funchosts: Vec<HostFunc>,
     pub tables: Vec<Table>,
     pub mems: Vec<Mem>,
     pub globals: Vec<Global>,
     pub elems: Vec<Elem>,
     pub datas: Vec<Data>,
-    pub instances: Vec<ModuleInstance>,
 }
 
 pub struct ModuleInstance {
     pub types: Vec<types::Function>,
-    pub funct: Vec<usize>,
-    pub tables: Vec<usize>,
-    pub mems: Vec<usize>,
-    pub globals: Vec<usize>,
-    pub elems: Vec<usize>,
-    pub datas: Vec<usize>,
+    pub funct: Vec<types::Addr>,
+    pub tables: Vec<types::Addr>,
+    pub mems: Vec<types::Addr>,
+    pub globals: Vec<types::Addr>,
+    pub elems: Vec<types::Addr>,
+    pub datas: Vec<types::Addr>,
     pub exports: Vec<Export>,
 }
 
@@ -170,6 +171,8 @@ impl embedding::Store for Store {
             datas: vec![],
             exports: vec![],
         };
+
+        // TODO validate imports (see section 3.2.8))
 
         instance.types = module.types.clone();
         self.instances.push(instance);
