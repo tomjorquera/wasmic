@@ -1,3 +1,5 @@
+use core::cell::RefCell;
+
 use alloc::{
     string::{String, ToString},
     vec::Vec,
@@ -6,7 +8,8 @@ use alloc::{
 use crate::{
     embedding,
     err::Err,
-    modules::HostFunc,
+    instr::Instr,
+    modules::{Func, HostFunc},
     types::{self, Addr},
 };
 
@@ -53,18 +56,19 @@ impl Val {
     }
 }
 
-pub enum Result {
+pub enum Res {
     Res(Vec<Val>),
     Trap,
 }
 
-pub struct Store {
-    pub funcinstances: Vec<FuncInstance>,
-    pub tables: Vec<Table>,
-    pub mems: Vec<Mem>,
-    pub globals: Vec<Global>,
-    pub elems: Vec<Elem>,
-    pub datas: Vec<Data>,
+pub struct Store<'a> {
+    pub modules: Vec<RefCell<ModuleInstance>>, // To guarantee soundness, the Store need to own the instantiated modules
+    pub funcinstances: Vec<FuncInstance<'a>>,
+    pub tables: Vec<RefCell<Table>>,
+    pub mems: Vec<RefCell<Mem>>,
+    pub globals: Vec<RefCell<Global>>,
+    pub elems: Vec<RefCell<Elem>>,
+    pub datas: Vec<RefCell<Data>>,
 }
 
 pub struct ModuleInstance {
@@ -78,19 +82,19 @@ pub struct ModuleInstance {
     pub exports: Vec<Export>,
 }
 
-pub enum FuncInstance {
-    Internal(InternalFuncInstance),
+pub enum FuncInstance<'a> {
+    Internal(InternalFuncInstance<'a>),
     Host(HostFuncInstance),
 }
 
-pub struct InternalFuncInstance {
+pub struct InternalFuncInstance<'a> {
     pub functype: types::Function,
-    pub module_addr: Addr,
-    pub code_addr: Addr,
+    pub module: &'a RefCell<ModuleInstance>,
+    pub code: Func,
 }
 pub struct HostFuncInstance {
     pub functype: types::Function,
-    pub code: Addr,
+    //pub extrnfunc: fn(usize) -> usize, // TODO define Host function invocation mechanism
 }
 
 pub struct Table {
@@ -99,7 +103,7 @@ pub struct Table {
 }
 pub struct Mem {
     pub memtype: types::Mem,
-    pub data: Vec<u8>,
+    pub data: Vec<types::Byte>,
 }
 pub struct Global {
     pub globaltype: types::Global,
@@ -110,14 +114,9 @@ pub struct Elem {
     pub elem: Vec<Ref>,
 }
 pub struct Data {
-    pub data: Vec<u8>,
+    pub data: Vec<types::Byte>,
 }
 pub struct Export {
-    pub name: String,
-    pub value: ExternalVal,
-}
-pub struct Import {
-    pub module: String,
     pub name: String,
     pub value: ExternalVal,
 }
@@ -130,209 +129,67 @@ pub enum ExternalVal {
     Global(Addr),
 }
 
-impl embedding::ModuleInstance for ModuleInstance {
-    fn export(&self, name: &str) -> Result<self::ExternalVal, crate::err::Err> {
-        for export in &self.exports {
-            if export.name == name {
-                return Result::Ok(export.value);
-            }
+pub struct Label<'a> {
+    pub arity: usize,
+    pub instr: &'a Vec<Instr>,
+}
+
+pub struct FrameState<'a> {
+    pub locals: Vec<Val>,
+    pub module: &'a RefCell<ModuleInstance>,
+}
+
+pub struct Frame<'a> {
+    pub arity: usize,
+    pub framestate: RefCell<FrameState<'a>>,
+}
+
+pub enum StackEntry<'a> {
+    Value(Val),
+    Label(Label<'a>),
+    Activation(i64, &'a Frame<'a>),
+}
+
+impl<'a> From<StackEntry<'a>> for u32 {
+    fn from(entry: StackEntry) -> Self {
+        // TODO validate?
+        match entry {
+            StackEntry::Value(Val::Num(Num::I32(val))) => val,
+            _ => panic!("not a u32 value"),
         }
-        return Result::Err(Err::ModuleInstanceExportNotFound(name.to_string()));
     }
 }
 
-impl embedding::Store for Store {
-    fn new() -> Self {
-        Store {
-            funcinstances: vec![],
-            funcdefs: vec![],
-            funchosts: vec![],
-            tables: vec![],
-            mems: vec![],
-            globals: vec![],
-            elems: vec![],
-            datas: vec![],
-            instances: vec![],
+impl<'a> Into<StackEntry<'a>> for u32 {
+    fn into(self) -> StackEntry<'a> {
+        StackEntry::Value(Val::Num(Num::I32(self)))
+    }
+}
+
+impl<'a> From<StackEntry<'a>> for u64 {
+    fn from(entry: StackEntry) -> Self {
+        // TODO validate?
+        match entry {
+            StackEntry::Value(Val::Num(Num::I64(val))) => val,
+            _ => panic!("not a u64 value"),
         }
     }
+}
 
-    fn instantiate(
-        &mut self,
-        module: &crate::modules::Module,
-        externvals: Vec<self::ExternalVal>,
-    ) -> Result<&self::ModuleInstance, Err> {
-        let mut instance = ModuleInstance {
-            types: vec![],
-            funct: vec![],
-            tables: vec![],
-            mems: vec![],
-            globals: vec![],
-            elems: vec![],
-            datas: vec![],
-            exports: vec![],
-        };
-
-        // TODO validate imports (see section 3.2.8))
-
-        instance.types = module.types.clone();
-        self.instances.push(instance);
-        let inst_addr = self.instances.len() - 1;
-        let instance_ref = self.instances.last_mut().unwrap();
-
-        for func in &module.funcs {
-            self.funcdefs.push(func.clone());
-            let func_inst = InternalFuncInstance {
-                functype: module.types[func.functype].clone(),
-                module_addr: inst_addr,
-                code_addr: self.funcdefs.len() - 1,
-            };
-            self.funcinstances.push(FuncInstance::Internal(func_inst));
-            let addr = self.funcinstances.len() - 1;
-            instance_ref.funct.push(addr);
-        }
-
-        for table in &module.tables {
-            let table_inst = Table {
-                tabletype: table.tabletype,
-                elem: vec![],
-            };
-            self.tables.push(table_inst);
-            instance_ref.tables.push(self.tables.len() - 1);
-        }
-
-        for mem in &module.mems {
-            let mem_inst = Mem {
-                memtype: mem.memtype,
-                data: vec![],
-            };
-            self.mems.push(mem_inst);
-            instance_ref.mems.push(self.mems.len() - 1);
-        }
-
-        for global in &module.globals {
-            let glob_inst = Global {
-                globaltype: global.globaltype,
-                value: Val::Num(Num::I32(0)), // TODO execute global.init
-            };
-            self.globals.push(glob_inst);
-            instance_ref.globals.push(self.globals.len() - 1);
-        }
-
-        for elem in &module.elems {
-            let elem_inst = Elem {
-                elemtype: elem.elemtype,
-                elem: vec![], // TODO copy elements from module according to mode
-            };
-            self.elems.push(elem_inst);
-            instance_ref.elems.push(self.elems.len() - 1);
-        }
-
-        for data in &module.datas {
-            let data_inst = Data {
-                data: data.init.clone(),
-            };
-            self.datas.push(data_inst);
-            instance_ref.datas.push(self.datas.len() - 1);
-        }
-
-        return Ok(self.instances.last_mut().unwrap());
+impl<'a> Into<StackEntry<'a>> for u64 {
+    fn into(self) -> StackEntry<'a> {
+        StackEntry::Value(Val::Num(Num::I64(self)))
     }
+}
 
-    fn func_alloc(&mut self, functype: types::Function, hostfunc: self::HostFunc) -> Addr {
-        self.funchosts.push(hostfunc);
-        let func_inst = HostFuncInstance {
-            functype,
-            code: self.funchosts.len() - 1,
-        };
-        self.funcinstances.push(FuncInstance::Host(func_inst));
-        return self.funcinstances.len() - 1;
+impl<'a> Into<StackEntry<'a>> for f32 {
+    fn into(self) -> StackEntry<'a> {
+        StackEntry::Value(Val::Num(Num::F32(self)))
     }
+}
 
-    fn func_type(&self, addr: Addr) -> types::Function {
-        match &self.funcinstances[addr] {
-            FuncInstance::Internal(f) => f.functype.clone(),
-            FuncInstance::Host(f) => f.functype.clone(),
-        }
-    }
-
-    fn invoke(&mut self, addr: Addr, values: Vec<self::Val>) -> Result<Vec<self::Val>, Err> {
-        todo!()
-    }
-
-    fn table_alloc(&mut self, tabletype: types::Table) -> Addr {
-        let table_inst = Table {
-            tabletype,
-            elem: vec![],
-        };
-        self.tables.push(table_inst);
-        return self.tables.len() - 1;
-    }
-
-    fn table_type(&self, addr: Addr) -> types::Table {
-        self.tables[addr].tabletype
-    }
-
-    fn table_read(&self, addr: Addr, index: usize) -> Result<self::Ref, Err> {
-        self.tables[addr]
-            .elem
-            .get(index)
-            .map(|val| *val)
-            .ok_or(Err::OutOfBoundTableAccess)
-    }
-
-    fn table_write(&mut self, addr: Addr, index: usize, value: self::Ref) -> Result<(), Err> {
-        if index >= self.tables[addr].elem.len() {
-            return Result::Err(Err::OutOfBoundTableAccess);
-        }
-        self.tables[addr].elem[index] = value;
-        Result::Ok(())
-    }
-
-    fn table_size(&self, addr: Addr) -> usize {
-        self.tables[addr].elem.len()
-    }
-
-    fn table_grow(&mut self, addr: Addr, n: u32, init: self::Ref) -> Result<(), Err> {
-        todo!()
-    }
-
-    fn mem_alloc(&mut self, memtyp: types::Mem) -> Addr {
-        todo!()
-    }
-
-    fn mem_type(&self, addr: Addr) -> types::Mem {
-        todo!()
-    }
-
-    fn mem_read(&self, addr: Addr, index: u32) -> Result<u8, Err> {
-        todo!()
-    }
-
-    fn mem_write(&mut self, addr: Addr, index: u32, value: u8) -> Result<(), Err> {
-        todo!()
-    }
-
-    fn mem_size(&self, addr: Addr) -> u32 {
-        todo!()
-    }
-
-    fn mem_grow(&mut self, addr: Addr, n: u32, init: self::Ref) -> Result<(), Err> {
-        todo!()
-    }
-
-    fn global_alloc(&mut self, globtype: types::Global) -> Addr {
-        todo!()
-    }
-
-    fn global_type(&self, addr: Addr) -> types::Global {
-        todo!()
-    }
-
-    fn global_read(&self, addr: Addr) -> Result<self::Val, Err> {
-        todo!()
-    }
-
-    fn global_write(&mut self, addr: Addr, value: self::Val) -> Result<(), Err> {
-        todo!()
+impl<'a> Into<StackEntry<'a>> for f64 {
+    fn into(self) -> StackEntry<'a> {
+        StackEntry::Value(Val::Num(Num::F64(self)))
     }
 }

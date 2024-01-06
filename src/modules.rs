@@ -28,7 +28,7 @@ pub struct Func {
 }
 
 #[derive(Clone, Copy)]
-pub struct HostFunc {} // TODO move it
+pub struct HostFunc {}
 
 pub struct Table {
     pub tabletype: types::Table,
