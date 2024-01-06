@@ -15,7 +15,7 @@ pub struct Module {
     pub globals: Vec<Global>,
     pub elems: Vec<Element>,
     pub datas: Vec<Data>,
-    pub start: Index,
+    pub start: Option<Index>,
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
 }
@@ -24,7 +24,7 @@ pub struct Module {
 pub struct Func {
     pub functype: Index,
     pub locals: Vec<types::Value>,
-    pub body: Vec<instr::Instr>,
+    pub body: instr::Expr,
 }
 
 #[derive(Clone, Copy)]
@@ -40,32 +40,32 @@ pub struct Mem {
 
 pub struct Global {
     pub globaltype: types::Global,
-    pub init: Vec<instr::Instr>, // TODO constant expression
+    pub init: instr::Expr, // TODO Validation: constant expression
 }
 
 pub enum ElemMode {
     Passive,
-    Active(Index, Vec<instr::Instr>), // TODO constant expression
+    Active(Index, instr::Expr), // TODO Validation: constant expression
     Declarative,
 }
 
 pub struct Element {
     pub elemtype: types::Ref,
-    pub init: Vec<instr::Instr>, // TODO constant expression
+    pub init: Vec<instr::Expr>, // TODO Validation: constant expression
     pub mode: ElemMode,
 }
 
 pub enum DataMode {
     Passive,
-    Active(Index, Vec<instr::Instr>), // TODO constant expression
+    Active(Index, instr::Expr), // TODO Validation: constant expression
 }
 
 pub struct Data {
-    pub init: Vec<u8>,
+    pub init: Vec<types::Byte>,
     pub mode: DataMode,
 }
 
-pub enum ExportImportDesc {
+pub enum ExportDesc {
     Func(Index),
     Table(Index),
     Mem(Index),
@@ -74,13 +74,20 @@ pub enum ExportImportDesc {
 
 pub struct Export {
     name: String,
-    desc: ExportImportDesc,
+    desc: ExportDesc,
+}
+
+pub enum ImportDesc {
+    Func(Index),
+    Table(types::Table),
+    Mem(types::Mem),
+    Global(types::Global),
 }
 
 pub struct Import {
     module: String,
     name: String,
-    desc: ExportImportDesc,
+    desc: ImportDesc,
 }
 
 impl embedding::Module for Module {
