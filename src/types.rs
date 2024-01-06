@@ -1,4 +1,4 @@
-use crate::validation::{Context, Validable};
+use crate::validation::{Context, Subtypable, Validable};
 use alloc::vec::Vec;
 
 pub type Byte = u8;
@@ -104,12 +104,22 @@ impl Validable for Function {
 }
 
 impl Validable for Limits {
-    fn is_valid(&self, context: &Context, k: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, k: Option<u32>) -> bool {
         match (self.max, k) {
             (None, None) => true,
             (Some(max), None) => self.min <= max,
             (None, Some(limit)) => self.min <= limit,
             (Some(max), Some(limit)) => self.min <= max && self.min <= limit && max <= limit,
+        }
+    }
+}
+
+impl Subtypable for Limits {
+    fn is_subtype(&self, other: &Limits) -> bool {
+        match (self.max, other.max) {
+            (_, None) => self.min >= other.min,
+            (None, Some(_)) => false,
+            (Some(max1), Some(max2)) => self.min >= other.min && max1 <= max2,
         }
     }
 }
