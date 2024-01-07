@@ -2,9 +2,10 @@ use crate::validation::{Context, Subtypable, Validable};
 use alloc::vec::Vec;
 
 pub type Byte = u8;
+pub type Int = usize; // TODO should be u32 here, but then causes issue with native vec index
 
-pub type Index = usize; // TODO should be u32 here, but then causes issue with native vec index
-pub type Addr = usize;
+pub type Index = Int;
+pub type Addr = Int;
 
 #[derive(Clone, Copy)]
 pub enum Number {
@@ -43,8 +44,8 @@ pub struct Function {
 
 #[derive(Clone, Copy)]
 pub struct Limits {
-    pub min: u32,
-    pub max: Option<u32>,
+    pub min: Int,
+    pub max: Option<Int>,
 }
 
 #[derive(Clone, Copy)]
@@ -80,31 +81,31 @@ pub enum Extern {
 // Validation
 
 impl Validable for Number {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, _: Option<Int>) -> bool {
         true
     }
 }
 
 impl Validable for Ref {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, _: Option<Int>) -> bool {
         true
     }
 }
 
 impl Validable for Value {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, _: Option<Int>) -> bool {
         true
     }
 }
 
 impl Validable for Function {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, _: Option<Int>) -> bool {
         true
     }
 }
 
 impl Validable for Limits {
-    fn is_valid(&self, _: &Context, k: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, k: Option<Int>) -> bool {
         match (self.max, k) {
             (None, None) => true,
             (Some(max), None) => self.min <= max,
@@ -125,31 +126,31 @@ impl Subtypable for Limits {
 }
 
 impl Validable for Mem {
-    fn is_valid(&self, context: &Context, _: Option<u32>) -> bool {
-        self.limits.is_valid(context, Some(2_u32.pow(16)))
+    fn is_valid(&self, context: &Context, _: Option<Int>) -> bool {
+        self.limits.is_valid(context, Some(2_u32.pow(16) as usize))
     }
 }
 
 impl Validable for Table {
-    fn is_valid(&self, context: &Context, _: Option<u32>) -> bool {
-        self.limits.is_valid(context, Some(u32::MAX))
+    fn is_valid(&self, context: &Context, _: Option<Int>) -> bool {
+        self.limits.is_valid(context, Some(u32::MAX as usize))
     }
 }
 
 impl Validable for Mut {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, _: Option<Int>) -> bool {
         true
     }
 }
 
 impl Validable for Global {
-    fn is_valid(&self, _: &Context, _: Option<u32>) -> bool {
+    fn is_valid(&self, _: &Context, _: Option<Int>) -> bool {
         true
     }
 }
 
 impl Validable for Extern {
-    fn is_valid(&self, context: &Context, k: Option<u32>) -> bool {
+    fn is_valid(&self, context: &Context, k: Option<Int>) -> bool {
         match self {
             Extern::Func(fun) => fun.is_valid(context, k),
             Extern::Table(table) => table.is_valid(context, k),

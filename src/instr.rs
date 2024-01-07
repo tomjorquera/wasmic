@@ -556,7 +556,7 @@ pub type Expr = Vec<Instr>;
 // Validation
 
 impl Validable for Expr {
-    fn is_valid(&self, context: &Context, k: Option<u32>) -> bool {
+    fn is_valid(&self, context: &Context, k: Option<types::Int>) -> bool {
         todo!()
     }
 }

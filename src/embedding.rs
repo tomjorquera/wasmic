@@ -6,7 +6,8 @@ use crate::{
     err::Err,
     modules::{self, HostFunc},
     runtime,
-    types::{self, Addr},
+    types::{self, Addr, Limits},
+    validation::Validable,
 };
 
 pub trait Store {
@@ -23,15 +24,16 @@ pub trait Store {
     fn table_read(&self, addr: Addr, index: usize) -> Result<runtime::Ref, Err>;
     fn table_write(&mut self, addr: Addr, index: usize, value: runtime::Ref) -> Result<(), Err>;
     fn table_size(&self, addr: Addr) -> usize;
-    fn table_grow(&mut self, addr: Addr, n: u32, init: runtime::Ref) -> Result<(), Err>;
+    fn table_grow(&mut self, addr: Addr, n: types::Int, init: runtime::Ref) -> Result<(), Err>;
 
     // Memories
     fn mem_alloc(&mut self, memtyp: types::Mem) -> Addr;
     fn mem_type(&self, addr: Addr) -> types::Mem;
-    fn mem_read(&self, addr: Addr, index: u32) -> Result<u8, Err>;
-    fn mem_write(&mut self, addr: Addr, index: u32, value: u8) -> Result<(), Err>;
-    fn mem_size(&self, addr: Addr) -> u32;
-    fn mem_grow(&mut self, addr: Addr, n: u32, init: runtime::Ref) -> Result<(), Err>;
+    fn mem_read(&self, addr: Addr, index: types::Index) -> Result<types::Byte, Err>;
+    fn mem_write(&mut self, addr: Addr, index: types::Index, value: types::Byte)
+        -> Result<(), Err>;
+    fn mem_size(&self, addr: Addr) -> types::Int;
+    fn mem_grow(&mut self, addr: Addr, n: types::Int, init: runtime::Ref) -> Result<(), Err>;
 
     // Globals
     fn global_alloc(&mut self, globtype: types::Global) -> Addr;
@@ -48,7 +50,7 @@ pub trait Module: Sized {
 
 pub trait Instanciable<'a>: Sized {
     fn export(&self, name: &str) -> Result<runtime::ExternalVal, Err>;
-    fn instanciate(
+    fn instantiate(
         store: &'a mut runtime::Store<'a>,
         module: &modules::Module,
         externvals: Vec<runtime::ExternalVal>,
@@ -65,7 +67,7 @@ impl<'a> Instanciable<'a> for runtime::ModuleInstance {
         return Result::Err(Err::ModuleInstanceExportNotFound(name.to_string()));
     }
 
-    fn instanciate(
+    fn instantiate(
         store: &'a mut runtime::Store<'a>,
         module: &modules::Module,
         externvals: Vec<runtime::ExternalVal>,
@@ -127,7 +129,7 @@ impl<'a> Instanciable<'a> for runtime::ModuleInstance {
         for table in &module.tables {
             let table_inst = RefCell::new(runtime::Table {
                 tabletype: table.tabletype,
-                elem: vec![],
+                elem: vec![], // TODO allocate min values
             });
             store.tables.push(table_inst);
             instance_ref
@@ -139,7 +141,7 @@ impl<'a> Instanciable<'a> for runtime::ModuleInstance {
         for mem in &module.mems {
             let mem_inst = RefCell::new(runtime::Mem {
                 memtype: mem.memtype,
-                data: vec![],
+                data: vec![], // TODO allocate min memory pages with 00
             });
             store.mems.push(mem_inst);
             instance_ref.borrow_mut().mems.push(store.mems.len() - 1);
@@ -273,8 +275,26 @@ impl<'a> Store for runtime::Store<'a> {
         self.tables[addr].borrow().elem.len()
     }
 
-    fn table_grow(&mut self, addr: Addr, n: u32, init: runtime::Ref) -> Result<(), Err> {
-        todo!()
+    fn table_grow(&mut self, addr: Addr, n: types::Int, init: runtime::Ref) -> Result<(), Err> {
+        let mut table = self.tables[addr].borrow_mut();
+        match table.elem.len().checked_add(n) {
+            None => Result::Err(Err::IntegerOverflow),
+            _ => {
+                let mut newLimits = table.tabletype.limits;
+                newLimits.min += n;
+                // TODO check new limit is valid
+                // if !newLimits.is_valid(context, Option::None) {
+                //     Result::Err(Err::InvalidLimit(newLimits))
+                // } else {
+                //     table.elem.extend_from_slice(&vec![init; n]);
+                //     table.tabletype = types::Table { limits: newLimits };
+                //     Ok(())
+                // }
+                table.elem.extend_from_slice(&vec![init; n]);
+                table.tabletype = types::Table { limits: newLimits };
+                Ok(())
+            }
+        }
     }
 
     fn mem_alloc(&mut self, memtyp: types::Mem) -> Addr {
@@ -285,19 +305,19 @@ impl<'a> Store for runtime::Store<'a> {
         todo!()
     }
 
-    fn mem_read(&self, addr: Addr, index: u32) -> Result<u8, Err> {
+    fn mem_read(&self, addr: Addr, index: types::Index) -> Result<u8, Err> {
         todo!()
     }
 
-    fn mem_write(&mut self, addr: Addr, index: u32, value: u8) -> Result<(), Err> {
+    fn mem_write(&mut self, addr: Addr, index: types::Index, value: u8) -> Result<(), Err> {
         todo!()
     }
 
-    fn mem_size(&self, addr: Addr) -> u32 {
+    fn mem_size(&self, addr: Addr) -> types::Int {
         todo!()
     }
 
-    fn mem_grow(&mut self, addr: Addr, n: u32, init: runtime::Ref) -> Result<(), Err> {
+    fn mem_grow(&mut self, addr: Addr, n: types::Int, init: runtime::Ref) -> Result<(), Err> {
         todo!()
     }
 

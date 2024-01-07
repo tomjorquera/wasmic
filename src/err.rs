@@ -1,6 +1,6 @@
 use alloc::string::String;
 
-use crate::types::Addr;
+use crate::types::{self, Addr};
 
 pub enum Err {
     ModuleDecode,
@@ -17,4 +17,6 @@ pub enum Err {
     UndefinedGlobal(Addr),
     UndefinedMem(Addr),
     UndefinedTable(Addr),
+    IntegerOverflow,
+    InvalidLimit(types::Limits),
 }

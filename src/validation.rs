@@ -17,7 +17,7 @@ pub struct Context {
 }
 
 pub trait Validable {
-    fn is_valid(&self, context: &Context, k: Option<u32>) -> bool;
+    fn is_valid(&self, context: &Context, k: Option<types::Int>) -> bool;
 }
 
 pub trait Subtypable {

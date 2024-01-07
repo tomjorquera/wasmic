@@ -107,7 +107,7 @@ impl embedding::Module for Module {
 // Validation
 
 impl Validable for Module {
-    fn is_valid(&self, context: &crate::validation::Context, k: Option<u32>) -> bool {
+    fn is_valid(&self, context: &crate::validation::Context, k: Option<types::Int>) -> bool {
         todo!()
     }
 }
