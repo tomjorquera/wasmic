@@ -83,6 +83,8 @@ impl<'a> Instanciable<'a> for runtime::ModuleInstance {
             exports: vec![],
         };
 
+        // TODO 4.5.4
+
         for externval in &externvals {
             match externval {
                 &runtime::ExternalVal::Fun(addr) => {

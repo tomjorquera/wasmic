@@ -2,6 +2,7 @@ use alloc::string::String;
 
 use crate::types::{self, Addr};
 
+#[derive(Debug)]
 pub enum Err {
     ModuleDecode,
     ModuleParse,
