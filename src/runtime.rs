@@ -1,19 +1,14 @@
 use core::cell::RefCell;
 
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::{string::String, vec::Vec};
 
 use crate::{
-    embedding,
-    err::Err,
     instr::Instr,
-    modules::{Func, HostFunc},
+    modules::Func,
     types::{self, Addr},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Num {
     I32(u32),
     I64(u64),
@@ -21,14 +16,14 @@ pub enum Num {
     F64(f64),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Ref {
     Null(types::Ref),
     Func(Addr),
     Extern(Addr),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Val {
     Num(Num),
     Vec(u128),
@@ -71,6 +66,20 @@ pub struct Store<'a> {
     pub datas: Vec<RefCell<Data>>,
 }
 
+impl<'a> Store<'a> {
+    pub fn new() -> Store<'a> {
+        Store {
+            modules: vec![],
+            funcinstances: vec![],
+            tables: vec![],
+            mems: vec![],
+            globals: vec![],
+            elems: vec![],
+            datas: vec![],
+        }
+    }
+}
+
 pub struct ModuleInstance {
     pub types: Vec<types::Function>,
     pub funct: Vec<types::Addr>,
@@ -80,6 +89,21 @@ pub struct ModuleInstance {
     pub elems: Vec<types::Addr>,
     pub datas: Vec<types::Addr>,
     pub exports: Vec<Export>,
+}
+
+impl ModuleInstance {
+    pub fn new() -> ModuleInstance {
+        ModuleInstance {
+            types: vec![],
+            funct: vec![],
+            tables: vec![],
+            mems: vec![],
+            globals: vec![],
+            elems: vec![],
+            datas: vec![],
+            exports: vec![],
+        }
+    }
 }
 
 pub enum FuncInstance<'a> {
@@ -142,6 +166,18 @@ pub struct FrameState<'a> {
 pub struct Frame<'a> {
     pub arity: usize,
     pub framestate: RefCell<FrameState<'a>>,
+}
+
+impl<'a> Frame<'a> {
+    pub fn new(module: &'a RefCell<ModuleInstance>) -> Frame<'a> {
+        Frame {
+            arity: 0,
+            framestate: RefCell::new(FrameState {
+                locals: vec![],
+                module,
+            }),
+        }
+    }
 }
 
 pub enum StackEntry<'a> {

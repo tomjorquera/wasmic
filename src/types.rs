@@ -7,7 +7,7 @@ pub type Int = usize; // TODO should be u32 here, but then causes issue with nat
 pub type Index = Int;
 pub type Addr = Int;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Number {
     I32,
     I64,
@@ -16,18 +16,18 @@ pub enum Number {
 }
 
 // TODO Vector Types (sec 2.3.2)
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Vector {
     Unimplemented,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Ref {
     Func,
     Extern,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Value {
     Num(Number),
     Vec(Vector),
@@ -36,41 +36,41 @@ pub enum Value {
 
 pub type Result = Vec<Value>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Function {
     pub input: Result,
     pub output: Result,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub min: Int,
     pub max: Option<Int>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Mem {
     pub limits: Limits, // Note limits are given in units of page size (sec 2.3.8)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Table {
     pub limits: Limits,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Mut {
     Const,
     Var,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Global {
     pub mutable: Mut,
     pub val: Value,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Extern {
     Func(Function),
     Table(Table),

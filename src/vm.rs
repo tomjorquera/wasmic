@@ -112,7 +112,7 @@ trait InstrStack {
 
 pub struct Trap {} // TODO
 
-fn run(store: &Store, program: &Vec<Instr>, frame: &Frame) -> Result<Vec<Val>, err::Err> {
+pub fn run(store: &Store, frame: &Frame, program: &Vec<Instr>) -> Result<Vec<Val>, err::Err> {
     let mut stack: Vec<StackEntry> = vec![];
     let mut ip = 0;
     while ip < program.len() && program.len() > 0 {
@@ -296,7 +296,7 @@ fn run(store: &Store, program: &Vec<Instr>, frame: &Frame) -> Result<Vec<Val>, e
                             arity: functype.output.len(),
                             instr: &code.body,
                         };
-                        run(store, label.instr, &inner_frame);
+                        //run(store, label.instr, &inner_frame);
                         unimplemented!()
                     }
                     FuncInstance::Host(HostFuncInstance { functype }) => {
@@ -318,4 +318,30 @@ fn run(store: &Store, program: &Vec<Instr>, frame: &Frame) -> Result<Vec<Val>, e
         }
     }
     return Result::Ok(res);
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use crate::runtime::{self, ModuleInstance};
+
+    use super::*;
+
+    #[test]
+    fn add_two() -> Result<(), err::Err> {
+        let mut store = Store::new();
+        store.modules.push(RefCell::new(ModuleInstance::new()));
+        let frame = Frame::new(&store.modules[0]);
+
+        let res = run(
+            &store,
+            &frame,
+            &vec![Instr::I32Const(1), Instr::I32Const(1), Instr::I32Add],
+        )?;
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0], runtime::Val::Num(runtime::Num::I32(2)));
+        Ok(())
+    }
 }
