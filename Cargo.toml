@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wasmic_macro = { path = "../wasmic_macro" }
+wast = "69.0.1"
